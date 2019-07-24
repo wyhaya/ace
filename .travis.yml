@@ -1,0 +1,23 @@
+
+language: rust
+services: docker
+
+os:
+  - linux
+  - osx
+  - windows
+
+before_install:
+  - rustup self update
+  - rustup component add rustfmt
+
+script:
+  - cargo fmt --all -- --check
+  - cargo test --release
+  - cargo run --example main -- start 1234
+  - cargo build --release
+
+before_cache:
+  - chmod -R a+r $HOME/.cargo
+
+cache: cargo

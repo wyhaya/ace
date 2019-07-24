@@ -1,0 +1,16 @@
+[package]
+name = "ace"
+version = "0.0.1"
+authors = ["wyhaya <wyhaya@gmail.com>"]
+edition = "2018"
+license = "MIT"
+description = "Parsing command line arguments"
+readme = "README.md"
+
+keywords = [
+    "command",
+    "parsing",
+    "arguments"
+]
+
+[dependencies]
