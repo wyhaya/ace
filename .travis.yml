@@ -14,7 +14,7 @@ before_install:
 script:
   - cargo fmt --all -- --check
   - cargo test --release
-  - cargo run --example main -- start 1234
+  - cargo run --example main -- start --config 123
   - cargo build --release
 
 before_cache:

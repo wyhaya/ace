@@ -1,61 +1,131 @@
+/// ## Initialize command line parsing
+
+/// ### Example
+/// ```rust
+/// use ace::App;
+///
+/// let app = App::new("app", env!("CARGO_PKG_VERSION"))
+///     .cmd("start", "Start now")
+///     .cmd("help", "Display help information")
+///     .cmd("version", "Display version information")
+///     .opt("--config", "Use configuration file");
+///
+/// if let Some(cmd) = app.command() {
+///     match cmd.as_str() {
+///         "start" => {
+///             dbg!(app.value("--config"));
+///         }
+///         "help" => {
+///             app.help();
+///         }
+///         "version" => {
+///             app.version();
+///         }
+///         _ => {
+///             app.error_try("help");
+///         }
+///     }
+/// }
+/// ```
+
 #[derive(Debug, Clone)]
-pub struct Ace {
+pub struct App<'a> {
+    name: &'a str,
+    version: &'a str,
     args: Vec<String>,
-    options: Vec<(String, String)>,
+    command: Vec<(&'a str, &'a str)>,
+    option: Vec<(&'a str, &'a str)>,
 }
 
-impl Ace {
-    pub fn new() -> Ace {
+impl<'a> App<'a> {
+    /// Create
+    pub fn new(name: &'a str, version: &'a str) -> App<'a> {
         let args = std::env::args().collect::<Vec<String>>();
-        Ace {
+        App {
+            name,
+            version,
             args,
-            options: vec![],
+            command: vec![],
+            option: vec![],
         }
     }
 
-    pub fn arg(mut self, arg: &str, desc: &str) -> Ace {
-        self.options.push((arg.to_string(), desc.to_string()));
-        Ace { ..self }
+    /// Add a command
+    pub fn cmd(mut self, cmd: &'a str, desc: &'a str) -> App<'a> {
+        self.command.push((cmd, desc));
+        App { ..self }
     }
 
+    /// Add a option
+    pub fn opt(mut self, opt: &'a str, desc: &'a str) -> App<'a> {
+        self.option.push((opt, desc));
+        App { ..self }
+    }
+
+    /// Get the current command
+    pub fn command(&self) -> Option<&String> {
+        if let Some(cur) = self.args.get(1) {
+            let all = self.option.iter().all(|(item, _)| item != cur);
+            if all {
+                return Some(cur);
+            }
+        }
+        None
+    }
+
+    /// Match the current command
     pub fn is(&mut self, arg: &str) -> bool {
         self.args.len() > 1 && arg == self.args[1]
     }
 
-    pub fn command(&self) -> Option<&String> {
-        self.args.get(1)
+    // Get all values
+    pub fn values(&self) -> &[String] {
+        &self.args[1..]
     }
 
-    pub fn value(&self) -> Vec<String> {
-        if self.args.len() > 2 {
-            self.args[2..].to_vec()
+    /// Get the value of option
+    pub fn value(&self, option: &str) -> Option<Vec<&String>> {
+        let mut values = vec![];
+        let mut find = false;
+        for item in self.args[1..].iter() {
+            if find {
+                let all = self.option.iter().all(|(arg, _)| item != arg);
+                if all {
+                    values.push(item);
+                } else {
+                    break;
+                }
+            }
+            if item == option {
+                find = true;
+            }
+        }
+        if find {
+            Some(values)
         } else {
-            vec![]
+            None
         }
     }
 
-    pub fn value_from(&self, command: &str) -> Vec<String> {
-        let mut values = vec![];
-        let mut f = false;
-        self.args[1..].iter().for_each(|s| {
-            if f {
-                values.push(s.to_string());
-            }
-            if s == command {
-                f = true;
+    /// Print version information
+    pub fn version(&self) {
+        println!("{0} version {1}", self.name, self.version)
+    }
+
+    fn print_help(name: &'static str, data: &Vec<(&str, &str)>) {
+        println!("{}", name);
+        let mut n = 0;
+        data.iter().for_each(|(d, _)| {
+            if d.len() > n {
+                n = d.len();
             }
         });
-        values
+        for (arg, desc) in data {
+            println!("    {:arg$}    {}", arg, desc, arg = n);
+        }
     }
 
-    pub fn version(&self) {
-        println!(
-            "{0} version {1}",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
-        )
-    }
-
+    /// Print help information
     pub fn help(&self) {
         println!(
             "\
@@ -63,23 +133,24 @@ impl Ace {
 
 Usage:
     {0} [COMMAND] [OPTION]
-
-Command:\
             ",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
+            self.name, self.version
         );
-        let mut n = 0;
-        self.options.iter().for_each(|item| {
-            if item.0.len() > n {
-                n = item.0.len();
-            }
-        });
-        for (arg, desc) in &self.options {
-            println!("    {:arg$}    {}", arg, desc, arg = n);
+
+        if self.command.len() > 0 {
+            Self::print_help("Command:", &self.command);
+        }
+
+        if self.command.len() > 0 && self.option.len() > 0 {
+            println!();
+        }
+
+        if self.option.len() > 0 {
+            Self::print_help("Option:", &self.option);
         }
     }
 
+    /// Print error information
     pub fn error(&self) {
         eprint!("\x1B[1;31m{}\x1B[0m", "error: ");
         eprintln!(
@@ -88,8 +159,9 @@ Command:\
         );
     }
 
+    /// Print an error message and add an attempt
     pub fn error_try(&self, command: &str) {
         self.error();
-        eprintln!("try:\n    '{} {}'", env!("CARGO_PKG_NAME"), command);
+        eprintln!("try:\n    '{} {}'", self.name, command);
     }
 }

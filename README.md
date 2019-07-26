@@ -13,23 +13,24 @@ Add this in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ace = "0.0.1"
+ace = "0.0.2"
 ```
 
  ## Example
  
 ```rust
-use ace::Ace;
+use ace::App;
 
-let app = Ace::new()
-    .arg("start", "Start daemon")
-    .arg("help", "Display help information")
-    .arg("version", "Display version information");
+let app = App::new("ace", env!("CARGO_PKG_VERSION"))
+    .cmd("start", "Start now")
+    .cmd("help", "Display help information")
+    .cmd("version", "Display version information")
+    .opt("--config", "Use configuration file");
 
 if let Some(cmd) = app.command() {
     match cmd.as_str() {
         "start" => {
-            dbg!(app.value());
+            dbg!(app.value("--config"));
         }
         "help" => {
             app.help();
@@ -38,10 +39,8 @@ if let Some(cmd) = app.command() {
             app.version();
         }
         _ => {
-            app.error();
+            app.error_try("help");
         }
     }
-} else {
-    app.error_try("help");
 }
 ```
