@@ -112,14 +112,13 @@ impl<'a> App<'a> {
         println!("{0} version {1}", self.name, self.version)
     }
 
-    fn print_help(name: &'static str, data: &Vec<(&str, &str)>) {
+    fn print_help(name: &'static str, data: &[(&str, &str)]) {
         println!("{}", name);
-        let mut n = 0;
-        data.iter().for_each(|(d, _)| {
-            if d.len() > n {
-                n = d.len();
-            }
-        });
+        let n = data
+            .iter()
+            .map(|item| item.0.len())
+            .fold(0, |a, b| a.max(b));
+
         for (arg, desc) in data {
             println!("    {:arg$}    {}", arg, desc, arg = n);
         }
@@ -137,15 +136,15 @@ Usage:
             self.name, self.version
         );
 
-        if self.command.len() > 0 {
+        if !self.command.is_empty() {
             Self::print_help("Command:", &self.command);
         }
 
-        if self.command.len() > 0 && self.option.len() > 0 {
+        if !self.command.is_empty() && !self.option.is_empty() {
             println!();
         }
 
-        if self.option.len() > 0 {
+        if !self.option.is_empty() {
             Self::print_help("Option:", &self.option);
         }
     }
@@ -155,7 +154,7 @@ Usage:
         eprint!("\x1B[1;31m{}\x1B[0m", "error: ");
         eprintln!(
             "'{}' is not a valid command",
-            self.args.get(1).unwrap_or(&String::new())
+            self.args.get(1).unwrap_or(&String::with_capacity(0))
         );
     }
 
