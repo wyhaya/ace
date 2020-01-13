@@ -1,6 +1,6 @@
 
 # Ace
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/wyhaya/ace/ci?style=flat-square)](https://github.com/wyhaya/ace/actions)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/wyhaya/ace/Test?style=flat-square)](https://github.com/wyhaya/ace/actions)
 [![Crates.io](https://img.shields.io/crates/v/ace.svg?style=flat-square)](https://crates.io/crates/ace)
 [![LICENSE](https://img.shields.io/crates/l/ace.svg?style=flat-square)](https://crates.io/crates/ace)
  
