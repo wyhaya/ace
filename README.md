@@ -1,7 +1,6 @@
 
 # Ace
-
-[![Build Status](https://img.shields.io/travis/wyhaya/ace.svg?style=flat-square)](https://travis-ci.org/wyhaya/ace)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/wyhaya/ace/ci?style=flat-square)](https://github.com/wyhaya/ace/actions)
 [![Crates.io](https://img.shields.io/crates/v/ace.svg?style=flat-square)](https://crates.io/crates/ace)
 [![LICENSE](https://img.shields.io/crates/l/ace.svg?style=flat-square)](https://crates.io/crates/ace)
  
@@ -13,34 +12,61 @@ Add this in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ace = "0.0.2"
+ace = "0.1.0"
 ```
 
- ## Example
+## Example
  
 ```rust
 use ace::App;
 
-let app = App::new("ace", env!("CARGO_PKG_VERSION"))
-    .cmd("start", "Start now")
-    .cmd("help", "Display help information")
-    .cmd("version", "Display version information")
-    .opt("--config", "Use configuration file");
+fn main() {
+    let app = App::new("app", env!("CARGO_PKG_VERSION"))
+        .cmd("start", "Start now")
+        .cmd("help", "Display help information")
+        .cmd("version", "Display version information")
+        .opt("--config", "Use configuration file")
+        .opt("--duration", vec!["Set duration of test", "example (1ms, 1s, 1m, 1h, 1d)"])
+        .opt("--timeout", "Set timeout");
 
-if let Some(cmd) = app.command() {
-    match cmd.as_str() {
-        "start" => {
-            dbg!(app.value("--config"));
+    if let Some(cmd) = app.command() {
+        match cmd.as_str() {
+            "start" => {
+                dbg!(app.value("--config"));
+            }
+            "help" => {
+                app.print_help();
+            }
+            "version" => {
+                app.print_version();
+            }
+            _ => {
+                app.print_error_try("help");
+            }
         }
-        "help" => {
-            app.help();
-        }
-        "version" => {
-            app.version();
-        }
-        _ => {
-            app.error_try("help");
-        }
+    } else {
+        dbg!(app.args());
     }
 }
+
+```
+
+Output:
+
+```bash
+app version 0.1.0
+
+Usage:
+    app [COMMAND] [OPTION]
+            
+Command:
+    start      Start now
+    help       Display help information
+    version    Display version information
+
+Option:
+    --config      Use configuration file
+    --duration    Set duration of test
+                  example (1ms, 1s, 1m, 1h, 1d)
+    --timeout     Set timeout
 ```

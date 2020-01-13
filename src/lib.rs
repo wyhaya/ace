@@ -8,7 +8,9 @@
 ///     .cmd("start", "Start now")
 ///     .cmd("help", "Display help information")
 ///     .cmd("version", "Display version information")
-///     .opt("--config", "Use configuration file");
+///     .opt("--config", "Use configuration file")
+///     .opt("--duration", vec!["Set duration of test", "example (1ms, 1s, 1m, 1h, 1d)"])
+///     .opt("--timeout", "Set timeout");
 ///
 /// if let Some(cmd) = app.command() {
 ///     match cmd.as_str() {
@@ -16,15 +18,17 @@
 ///             dbg!(app.value("--config"));
 ///         }
 ///         "help" => {
-///             app.help();
+///             app.print_help();
 ///         }
 ///         "version" => {
-///             app.version();
+///             app.print_version();
 ///         }
 ///         _ => {
-///             app.error_try("help");
+///             app.print_error_try("help");
 ///         }
 ///     }
+/// } else {
+///     dbg!(app.args());
 /// }
 /// ```
 
@@ -33,8 +37,8 @@ pub struct App<'a> {
     name: &'a str,
     version: &'a str,
     args: Vec<String>,
-    command: Vec<(&'a str, &'a str)>,
-    option: Vec<(&'a str, &'a str)>,
+    command: Vec<(&'a str, Vec<String>)>,
+    option: Vec<(&'a str, Vec<String>)>,
 }
 
 impl<'a> App<'a> {
@@ -51,15 +55,15 @@ impl<'a> App<'a> {
     }
 
     /// Add a command
-    pub fn cmd(mut self, cmd: &'a str, desc: &'a str) -> App<'a> {
-        self.command.push((cmd, desc));
-        App { ..self }
+    pub fn cmd<T: AppDesc>(mut self, cmd: &'a str, desc: T) -> App<'a> {
+        self.command.push((cmd, desc.to_vec_string()));
+        self
     }
 
     /// Add a option
-    pub fn opt(mut self, opt: &'a str, desc: &'a str) -> App<'a> {
-        self.option.push((opt, desc));
-        App { ..self }
+    pub fn opt<T: AppDesc>(mut self, opt: &'a str, desc: T) -> App<'a> {
+        self.option.push((opt, desc.to_vec_string()));
+        self
     }
 
     /// Get the current command
@@ -73,46 +77,57 @@ impl<'a> App<'a> {
         None
     }
 
-    /// Match the current command
-    pub fn is(&mut self, arg: &str) -> bool {
-        self.args.len() > 1 && arg == self.args[1]
-    }
+    /// Get the value of command or option
+    pub fn value(&self, name: &str) -> Option<Vec<&String>> {
+        let find = self.args().iter().position(|item| item == name);
 
-    // Get all values
-    pub fn values(&self) -> &[String] {
-        &self.args[1..]
-    }
+        if let Some(i) = find {
+            let mut values = vec![];
 
-    /// Get the value of option
-    pub fn value(&self, option: &str) -> Option<Vec<&String>> {
-        let mut values = vec![];
-        let mut find = false;
-        for item in self.args[1..].iter() {
-            if find {
-                let all = self.option.iter().all(|(arg, _)| item != arg);
-                if all {
+            for item in &self.args()[i + 1..] {
+                let pass = self.option.iter().all(|(arg, _)| item != arg);
+                if pass {
                     values.push(item);
                 } else {
                     break;
                 }
             }
-            if item == option {
-                find = true;
-            }
+
+            return Some(values);
         }
-        if find {
-            Some(values)
-        } else {
-            None
-        }
+        None
+    }
+
+    /// Match the current command
+    pub fn is(&mut self, arg: &str) -> bool {
+        self.args.len() > 1 && arg == self.args[1]
+    }
+
+    /// Get all values
+    pub fn args(&self) -> &[String] {
+        &self.args[1..]
     }
 
     /// Print version information
-    pub fn version(&self) {
-        println!("{0} version {1}", self.name, self.version)
+    pub fn print_version(&self) {
+        println!("{} version {}", self.name, self.version)
     }
 
-    fn print_help(name: &'static str, data: &[(&str, &str)]) {
+    /// Print error information
+    pub fn print_error(&self) {
+        eprintln!(
+            "error: '{}' is not a valid command",
+            self.args.get(1).unwrap_or(&String::with_capacity(0))
+        );
+    }
+
+    /// Print an error message and add an attempt
+    pub fn print_error_try(&self, command: &str) {
+        self.print_error();
+        eprintln!("try:\n    '{} {}'", self.name, command);
+    }
+
+    fn print_item(name: &'static str, data: &[(&str, Vec<String>)]) {
         println!("{}", name);
         let n = data
             .iter()
@@ -120,12 +135,24 @@ impl<'a> App<'a> {
             .fold(0, |a, b| a.max(b));
 
         for (arg, desc) in data {
-            println!("    {:arg$}    {}", arg, desc, arg = n);
+            println!(
+                "    {:arg$}    {}",
+                arg,
+                desc.get(0).unwrap_or(&String::new()),
+                arg = n
+            );
+            if desc.len() > 1 {
+                for item in &desc[1..] {
+                    if !item.is_empty() {
+                        println!("{:>width$}", item, width = 8 + n + item.len());
+                    }
+                }
+            }
         }
     }
 
     /// Print help information
-    pub fn help(&self) {
+    pub fn print_help(&self) {
         println!(
             "\
 {0} version {1}
@@ -137,7 +164,7 @@ Usage:
         );
 
         if !self.command.is_empty() {
-            Self::print_help("Command:", &self.command);
+            Self::print_item("Command:", &self.command);
         }
 
         if !self.command.is_empty() && !self.option.is_empty() {
@@ -145,22 +172,31 @@ Usage:
         }
 
         if !self.option.is_empty() {
-            Self::print_help("Option:", &self.option);
+            Self::print_item("Option:", &self.option);
         }
     }
+}
 
-    /// Print error information
-    pub fn error(&self) {
-        eprint!("\x1B[1;31m{}\x1B[0m", "error: ");
-        eprintln!(
-            "'{}' is not a valid command",
-            self.args.get(1).unwrap_or(&String::with_capacity(0))
-        );
+pub trait AppDesc {
+    fn to_vec_string(self) -> Vec<String>;
+}
+
+impl AppDesc for &str {
+    fn to_vec_string(self) -> Vec<String> {
+        vec![self.to_string()]
     }
+}
 
-    /// Print an error message and add an attempt
-    pub fn error_try(&self, command: &str) {
-        self.error();
-        eprintln!("try:\n    '{} {}'", self.name, command);
+impl AppDesc for String {
+    fn to_vec_string(self) -> Vec<String> {
+        vec![self]
+    }
+}
+
+impl<T: ToString> AppDesc for Vec<T> {
+    fn to_vec_string(self) -> Vec<String> {
+        self.iter()
+            .map(|item| item.to_string())
+            .collect::<Vec<String>>()
     }
 }
