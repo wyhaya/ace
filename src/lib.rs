@@ -4,7 +4,9 @@
 /// ```rust
 /// use ace::App;
 ///
-/// let app = App::new("app", env!("CARGO_PKG_VERSION"))
+/// let app = App::new()
+///     .config("app", env!("CARGO_PKG_VERSION"))
+///     .desc("This is a description")
 ///     .cmd("start", "Start now")
 ///     .cmd("help", "Display help information")
 ///     .cmd("version", "Display version information")
@@ -32,26 +34,52 @@
 /// }
 /// ```
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct App<'a> {
-    name: &'a str,
-    version: &'a str,
     args: Vec<String>,
+    name: Option<&'a str>,
+    version: Option<&'a str>,
+    desc: Option<&'a str>,
     command: Vec<(&'a str, Vec<String>)>,
     option: Vec<(&'a str, Vec<String>)>,
 }
 
 impl<'a> App<'a> {
     /// Create
-    pub fn new(name: &'a str, version: &'a str) -> App<'a> {
-        let args = std::env::args().collect::<Vec<String>>();
+    pub fn new() -> App<'a> {
         App {
-            name,
-            version,
-            args,
+            args: std::env::args().collect::<Vec<String>>(),
+            name: None,
+            version: None,
+            desc: None,
             command: vec![],
             option: vec![],
         }
+    }
+
+    /// Set name
+    pub fn name(mut self, name: &'a str) -> App<'a> {
+        self.name = Some(name);
+        self
+    }
+
+    /// Set version
+    pub fn version(mut self, version: &'a str) -> App<'a> {
+        self.version = Some(version);
+        self
+    }
+
+    /// Set name and version
+    pub fn config(mut self, name: &'a str, version: &'a str) -> App<'a> {
+        self.name = Some(name);
+        self.version = Some(version);
+        self
+    }
+
+    /// Set desc
+    pub fn desc(mut self, desc: &'a str) -> App<'a> {
+        self.desc = Some(desc);
+        self
     }
 
     /// Add a command
@@ -110,21 +138,25 @@ impl<'a> App<'a> {
 
     /// Print version information
     pub fn print_version(&self) {
-        println!("{} version {}", self.name, self.version)
+        if let (Some(name), Some(version)) = (self.name, self.version) {
+            println!("{} version {}", name, version);
+        } else if let Some(version) = self.version {
+            println!("version {}", version);
+        }
     }
 
     /// Print error information
     pub fn print_error(&self) {
-        eprintln!(
-            "error: '{}' is not a valid command",
-            self.args.get(1).unwrap_or(&String::with_capacity(0))
-        );
+        match self.args.get(1) {
+            Some(cmd) => eprintln!("error: '{}' is not a valid command", cmd),
+            None => eprintln!("error: valid command"),
+        }
     }
 
     /// Print an error message and add an attempt
-    pub fn print_error_try(&self, command: &str) {
+    pub fn print_error_try(&self, cmd: &str) {
         self.print_error();
-        eprintln!("try:\n    '{} {}'", self.name, command);
+        eprintln!("try:\n    '{} {}'", &self.args[0], cmd);
     }
 
     fn print_item(name: &'static str, data: &[(&str, Vec<String>)]) {
@@ -153,14 +185,26 @@ impl<'a> App<'a> {
 
     /// Print help information
     pub fn print_help(&self) {
+        let name = self.name.map(|s| format!("{} ", s)).unwrap_or_default();
+        let version = self
+            .version
+            .map(|s| format!("version {}", s))
+            .unwrap_or_default();
+
+        if !name.is_empty() || !version.is_empty() {
+            println!("{}{}\n", name, version);
+        }
+
+        if let Some(desc) = self.desc {
+            println!("{}\n", desc);
+        }
+
         println!(
             "\
-{0} version {1}
-
 Usage:
-    {0} [COMMAND] [OPTION]
+    {} [COMMAND] [OPTION]
             ",
-            self.name, self.version
+            self.args[0]
         );
 
         if !self.command.is_empty() {
@@ -190,6 +234,14 @@ impl AppDesc for &str {
 impl AppDesc for String {
     fn to_vec_string(self) -> Vec<String> {
         vec![self]
+    }
+}
+
+impl<T: ToString> AppDesc for &[T] {
+    fn to_vec_string(self) -> Vec<String> {
+        self.iter()
+            .map(|item| item.to_string())
+            .collect::<Vec<String>>()
     }
 }
 

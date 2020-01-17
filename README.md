@@ -1,5 +1,5 @@
 
-# Ace
+# ace
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/wyhaya/ace/Test?style=flat-square)](https://github.com/wyhaya/ace/actions)
 [![Crates.io](https://img.shields.io/crates/v/ace.svg?style=flat-square)](https://crates.io/crates/ace)
 [![LICENSE](https://img.shields.io/crates/l/ace.svg?style=flat-square)](https://crates.io/crates/ace)
@@ -12,7 +12,7 @@ Add this in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ace = "0.1.0"
+ace = "0.2.0"
 ```
 
 ## Example
@@ -21,7 +21,8 @@ ace = "0.1.0"
 use ace::App;
 
 fn main() {
-    let app = App::new("app", env!("CARGO_PKG_VERSION"))
+    let app = App::new()
+        .config("app", env!("CARGO_PKG_VERSION"))
         .cmd("start", "Start now")
         .cmd("help", "Display help information")
         .cmd("version", "Display version information")
@@ -54,7 +55,7 @@ fn main() {
 Output:
 
 ```bash
-app version 0.1.0
+app version 0.2.0
 
 Usage:
     app [COMMAND] [OPTION]

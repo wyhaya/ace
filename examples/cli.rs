@@ -1,7 +1,9 @@
 use ace::App;
 
 fn main() {
-    let app = App::new("app", env!("CARGO_PKG_VERSION"))
+    let app = App::new()
+        .config("app", env!("CARGO_PKG_VERSION"))
+        .desc("This is a description")
         .cmd("start", "Start now")
         .cmd("help", "Display help information")
         .cmd("version", "Display version information")
